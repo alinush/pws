@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# pws - Move files and directories to a timestamped folder in ~/PWS
+
+set -e
+
+# Check if at least one argument is provided
+if [ $# -eq 0 ]; then
+    echo "Usage: pws <file1> [file2] [dir1] ..." >&2
+    echo "Moves files and directories to a timestamped folder in ~/PWS" >&2
+    exit 1
+fi
+
+# Create ~/PWS if it doesn't exist
+PWS_BASE="$HOME/PWS"
+mkdir -p "$PWS_BASE"
+
+# Generate timestamped folder name
+TIMESTAMP=$(date '+%Y-%m-%d-%Hh-%Mm-%Ss')
+TARGET_DIR="$PWS_BASE/$TIMESTAMP"
+
+# Create the timestamped directory (fail if it already exists)
+if [ -d "$TARGET_DIR" ]; then
+    echo "Error: Directory '$TARGET_DIR' already exists" >&2
+    exit 1
+fi
+mkdir "$TARGET_DIR"
+
+# Move all arguments to the target directory
+for item in "$@"; do
+    if [ -e "$item" ]; then
+        mv "$item" "$TARGET_DIR/"
+        echo "Moved: $item -> $TARGET_DIR/"
+    else
+        echo "Warning: '$item' does not exist, skipping" >&2
+    fi
+done
+
+echo "Done. Files moved to: $TARGET_DIR"
