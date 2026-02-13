@@ -12,16 +12,19 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  -c, --copy    Copy files instead of moving them"
+    echo "  -l, --last    Use the last-created directory instead of creating a new one"
     echo "  -h, --help    Show this help message and exit"
     echo ""
     echo "Examples:"
     echo "  pws file.txt                # Move file.txt to ~/PWS/<timestamp>/"
     echo "  pws -c file.txt dir/        # Copy file.txt and dir/ to ~/PWS/<timestamp>/"
+    echo "  pws -l file.txt             # Move file.txt to the most recent ~/PWS/ folder"
     echo "  pws *.log                   # Move all .log files to ~/PWS/<timestamp>/"
 }
 
 # Parse options
 COPY_MODE=false
+USE_LAST=false
 POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -32,6 +35,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -c|--copy)
             COPY_MODE=true
+            shift
+            ;;
+        -l|--last)
+            USE_LAST=true
             shift
             ;;
         -*)
@@ -49,33 +56,41 @@ done
 # Restore positional parameters
 set -- "${POSITIONAL_ARGS[@]}"
 
-# Check if at least one file/directory argument is provided
+# If no arguments provided, show help
 if [ $# -eq 0 ]; then
-    echo "Error: No files or directories specified." >&2
-    echo "Use 'pws --help' for usage information." >&2
-    exit 1
+    show_help
+    exit 0
 fi
 
 # Create ~/PWS if it doesn't exist
 PWS_BASE="$HOME/PWS"
 mkdir -p "$PWS_BASE"
 
-# Generate timestamped folder name
-# Get all date components at once to avoid race conditions at date boundaries
-DATE_INFO=$(date '+%Y %m %b %d %a %H %M %S')
-read YEAR MONTH_NUM MONTH_NAME DAY_NUM DAY_NAME HOUR MIN SEC <<< "$DATE_INFO"
-# Format: YYYY-MM-mon-DD-dy-HHh-MMm-SSs (e.g., 2026-02-feb-13-fr-08h-15m-30s)
-MONTH_LOWER=$(echo "$MONTH_NAME" | tr '[:upper:]' '[:lower:]')
-DAY_SHORT=$(echo "$DAY_NAME" | tr '[:upper:]' '[:lower:]' | cut -c1-2)
-TIMESTAMP="$YEAR-$MONTH_NUM-$MONTH_LOWER-$DAY_NUM-$DAY_SHORT-${HOUR}h-${MIN}m-${SEC}s"
-TARGET_DIR="$PWS_BASE/$TIMESTAMP"
+if [ "$USE_LAST" = true ]; then
+    # Find the most recently created directory in ~/PWS
+    TARGET_DIR=$(ls -td "$PWS_BASE"/*/ 2>/dev/null | head -n 1 | sed 's:/$::')
+    if [ -z "$TARGET_DIR" ]; then
+        echo "Error: No existing directories found in $PWS_BASE" >&2
+        exit 1
+    fi
+else
+    # Generate timestamped folder name
+    # Get all date components at once to avoid race conditions at date boundaries
+    DATE_INFO=$(date '+%Y %m %b %d %a %H %M %S')
+    read YEAR MONTH_NUM MONTH_NAME DAY_NUM DAY_NAME HOUR MIN SEC <<< "$DATE_INFO"
+    # Format: YYYY-MM-mon-DD-dy-HHh-MMm-SSs (e.g., 2026-02-feb-13-fr-08h-15m-30s)
+    MONTH_LOWER=$(echo "$MONTH_NAME" | tr '[:upper:]' '[:lower:]')
+    DAY_SHORT=$(echo "$DAY_NAME" | tr '[:upper:]' '[:lower:]' | cut -c1-2)
+    TIMESTAMP="$YEAR-$MONTH_NUM-$MONTH_LOWER-$DAY_NUM-$DAY_SHORT-${HOUR}h-${MIN}m-${SEC}s"
+    TARGET_DIR="$PWS_BASE/$TIMESTAMP"
 
-# Create the timestamped directory (fail if it already exists)
-if [ -d "$TARGET_DIR" ]; then
-    echo "Error: Directory '$TARGET_DIR' already exists" >&2
-    exit 1
+    # Create the timestamped directory (fail if it already exists)
+    if [ -d "$TARGET_DIR" ]; then
+        echo "Error: Directory '$TARGET_DIR' already exists" >&2
+        exit 1
+    fi
+    mkdir "$TARGET_DIR"
 fi
-mkdir "$TARGET_DIR"
 
 # Move or copy all arguments to the target directory
 for item in "$@"; do
