@@ -1,13 +1,58 @@
 #!/bin/bash
 
-# pws - Move files and directories to a timestamped folder in ~/PWS
+# pws - Move or copy files and directories to a timestamped folder in ~/PWS
 
 set -e
 
-# Check if at least one argument is provided
+# Function to display help
+show_help() {
+    echo "Usage: pws [OPTIONS] <file1> [file2] [dir1] ..."
+    echo ""
+    echo "Move or copy files and directories to a timestamped folder in ~/PWS"
+    echo ""
+    echo "Options:"
+    echo "  -c, --copy    Copy files instead of moving them"
+    echo "  -h, --help    Show this help message and exit"
+    echo ""
+    echo "Examples:"
+    echo "  pws file.txt                # Move file.txt to ~/PWS/<timestamp>/"
+    echo "  pws -c file.txt dir/        # Copy file.txt and dir/ to ~/PWS/<timestamp>/"
+    echo "  pws *.log                   # Move all .log files to ~/PWS/<timestamp>/"
+}
+
+# Parse options
+COPY_MODE=false
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -c|--copy)
+            COPY_MODE=true
+            shift
+            ;;
+        -*)
+            echo "Error: Unknown option '$1'" >&2
+            echo "Use 'pws --help' for usage information." >&2
+            exit 1
+            ;;
+        *)
+            POSITIONAL_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Restore positional parameters
+set -- "${POSITIONAL_ARGS[@]}"
+
+# Check if at least one file/directory argument is provided
 if [ $# -eq 0 ]; then
-    echo "Usage: pws <file1> [file2] [dir1] ..." >&2
-    echo "Moves files and directories to a timestamped folder in ~/PWS" >&2
+    echo "Error: No files or directories specified." >&2
+    echo "Use 'pws --help' for usage information." >&2
     exit 1
 fi
 
@@ -32,15 +77,22 @@ if [ -d "$TARGET_DIR" ]; then
 fi
 mkdir "$TARGET_DIR"
 
-# Move all arguments to the target directory
+# Move or copy all arguments to the target directory
 for item in "$@"; do
     if [ -e "$item" ]; then
-        mv "$item" "$TARGET_DIR/"
-        #echo "Moved: $item -> $TARGET_DIR/"
+        if [ "$COPY_MODE" = true ]; then
+            cp -r "$item" "$TARGET_DIR/"
+        else
+            mv "$item" "$TARGET_DIR/"
+        fi
     else
         echo "WARNING: '$item' does not exist. Skipping it..." >&2
     fi
 done
 
-echo "Files and directories moved to:"
+if [ "$COPY_MODE" = true ]; then
+    echo "Files and directories copied to:"
+else
+    echo "Files and directories moved to:"
+fi
 echo "$TARGET_DIR"
