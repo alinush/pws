@@ -105,6 +105,16 @@ for item in "$@"; do
     fi
 done
 
+# Prompt to append a name to the directory (only for new directories)
+if [ "$USE_LAST" = false ]; then
+    read -p "Append a name to the directory (or press Enter to skip): " DIR_NAME
+    if [ -n "$DIR_NAME" ]; then
+        NEW_TARGET_DIR="$TARGET_DIR-$DIR_NAME"
+        mv "$TARGET_DIR" "$NEW_TARGET_DIR"
+        TARGET_DIR="$NEW_TARGET_DIR"
+    fi
+fi
+
 if [ "$COPY_MODE" = true ]; then
     echo "Files and directories copied to:"
 else
