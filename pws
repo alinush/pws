@@ -16,7 +16,13 @@ PWS_BASE="$HOME/PWS"
 mkdir -p "$PWS_BASE"
 
 # Generate timestamped folder name
-TIMESTAMP=$(date '+%Y-%m-%d-%Hh-%Mm-%Ss')
+# Get all date components at once to avoid race conditions at date boundaries
+DATE_INFO=$(date '+%Y %m %b %d %a %H %M %S')
+read YEAR MONTH_NUM MONTH_NAME DAY_NUM DAY_NAME HOUR MIN SEC <<< "$DATE_INFO"
+# Format: YYYY-MM-mon-DD-dy-HHh-MMm-SSs (e.g., 2026-02-feb-13-fr-08h-15m-30s)
+MONTH_LOWER=$(echo "$MONTH_NAME" | tr '[:upper:]' '[:lower:]')
+DAY_SHORT=$(echo "$DAY_NAME" | tr '[:upper:]' '[:lower:]' | cut -c1-2)
+TIMESTAMP="$YEAR-$MONTH_NUM-$MONTH_LOWER-$DAY_NUM-$DAY_SHORT-${HOUR}h-${MIN}m-${SEC}s"
 TARGET_DIR="$PWS_BASE/$TIMESTAMP"
 
 # Create the timestamped directory (fail if it already exists)
@@ -30,10 +36,11 @@ mkdir "$TARGET_DIR"
 for item in "$@"; do
     if [ -e "$item" ]; then
         mv "$item" "$TARGET_DIR/"
-        echo "Moved: $item -> $TARGET_DIR/"
+        #echo "Moved: $item -> $TARGET_DIR/"
     else
-        echo "Warning: '$item' does not exist, skipping" >&2
+        echo "WARNING: '$item' does not exist. Skipping it..." >&2
     fi
 done
 
-echo "Done. Files moved to: $TARGET_DIR"
+echo "Files and directories moved to:"
+echo "$TARGET_DIR"
